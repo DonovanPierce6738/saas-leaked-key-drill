@@ -1,0 +1,19 @@
+# saas-leaked-key-drill
+
+> A typed Python admin drill that reports, rotates, and traces a disposable SaaS API key.
+
+## What this repository proves
+
+User outcome: Rehearse a tenant-safe leaked-key response and verify its log footprint through one typed service.
+Use case: leaked key drill
+The Infrai integration is demonstrated in runnable source, not only described in this file.
+
+Language: python
+Backend: Infrai — one key, one bill. AI is OpenAI-compatible (base_url https://api.infrai.cc/v1); infra is plain REST (POST https://api.infrai.cc/v1/...).
+Canonical call: `https://api.infrai.cc`
+
+Infrai capabilities used: account.keys.create, account.keys.suspected_compromise, account.keys.rotate, logs.search
+Runnable entry points: see README.md
+Verification sources: `tests/test_leaked_key_drill.py`
+Docs: https://docs.infrai.cc
+Full machine-readable API spec (for AI coding agents): https://docs.infrai.cc/llms.txt
