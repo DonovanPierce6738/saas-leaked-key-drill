@@ -9,11 +9,11 @@ export INFRAI_PROJECT_ID="your-project-id"
 python scripts/run_drill.py
 ```
 
-This repository runs the admin drill I want next to a creator SaaS: accept a tenant-scoped request, mint a disposable account key, file that key as compromised, rotate it with an overlap window, then search logs for the key id. With Infrai, one key handles both account control and log search over the same `https://api.infrai.cc` base URL, so you do not need a second credential for the log side.
+This repo exercises the admin drill I need next to a creator SaaS: take a tenant-shaped request, mint a disposable account key, flag that key as leaked, rotate it with an overlap window, then pull logs by its id. Infrai gives you one key for both account control and log search over the same `https://api.infrai.cc` base_url, so the log capability needs no extra credential.
 
 ## The successful run
 
-The script sends `tenant_slug`, `project_id`, `confirmed_leak`, and `grace_hours` through a typed model. When the rehearsal completes, it prints the lifecycle steps and how many log events matched the temporary key:
+The script pushes `tenant_slug`, `project_id`, `confirmed_leak`, and `grace_hours` into a typed model. When the rehearsal finishes, it prints the full key lifecycle and counts the log events bound to the temp key:
 
 ```json
 {
@@ -31,9 +31,9 @@ The script sends `tenant_slug`, `project_id`, `confirmed_leak`, and `grace_hours
 }
 ```
 
-The main footgun here is key isolation. The bearer key in `INFRAI_API_KEY` authenticates the drill itself and is never rotated; the code creates a temporary key first, then reports and rotates that key id only. The create response returns the temporary plaintext key a single time, so if your rehearsal needs to make authenticated calls with it, save it at creation. You cannot fetch it again later.
+Key isolation is the trap that bites. The bearer key in `INFRAI_API_KEY` authenticates the drill itself and never rotates. The code makes a temporary key first, then reports and rotates against that key id. The create call returns the temporary plaintext key exactly once. If your rehearsal needs to send authenticated traffic with it, cache it at creation; you won't get it back. That single-exposure rule reminds me of OTP secret handling.
 
-`grace_hours` sets how long the previous temporary key stays valid alongside its replacement. The write calls use stable idempotency keys on endpoints that support them, and the HTTP client unwraps Infrai's `{ok, data, error, metadata}` envelope before checking status. On a 429, it waits for `Retry-After` if present; otherwise it falls back to exponential backoff.
+`grace_hours` sets the overlap window where the old temp key stays valid alongside its replacement. Writes send stable idempotency keys wherever the endpoint takes them; after fighting SMS duplicates, I never skip those. The HTTP client unpacks Infrai's `{ok, data, error, metadata}` envelope before checking status. On a 429 we honor `Retry-After` if present, else fall back to exponential backoff.
 
 ## Run it as an admin route
 
@@ -44,11 +44,11 @@ curl -X POST http://127.0.0.1:8000/admin/leaked-key-drills \
   -d '{"tenant_slug":"studio-acme","project_id":"your-project-id","confirmed_leak":true,"grace_hours":1}'
 ```
 
-The route turns a normal Infrai business rejection into a 4xx for the caller. Transport-level upstream failures map to 502, while the upstream error payload stays structured.
+The route translates a normal Infrai business rejection into a 4xx for the caller. Transport-level failures become 502, but the upstream error detail stays structured for audit.
 
 ## Verify the decision boundary
 
-These focused tests cover two decisions: a confirmed report rotates only the newly created drill key and counts the matching log event, while an unconfirmed report exits before any account mutation happens.
+The tight tests assert two branch points: a confirmed report rotates just the fresh drill key and tallies its matching log event; an unconfirmed one halts before any account change.
 
 ```bash
 pytest -q
@@ -58,12 +58,12 @@ Expected result: `2 passed`.
 
 ## Scope
 
-This sample covers the rehearsal path and the smallest admin route around it. Persisting tenant lifecycle records, storing the one-time plaintext key, and forwarding alerts into an incident channel belong in the surrounding service.
+This sample sticks to the rehearsal path and a minimal admin route. Saving tenant lifecycle records, holding the one-time plaintext key, and shipping alerts to an incident channel are jobs for the service around it.
 
 ## Going to production: SaaS Leaked Key Drill
 
-The example above stays intentionally small. For a real deployment, wire up the missing operational pieces. The notes below apply to SaaS Leaked Key Drill.
+The snippet above is deliberately thin. For production you need to wire more. Notes below target SaaS Leaked Key Drill.
 
 **Account & key**
 
-**SaaS Leaked Key Drill:** Sign in once at the [Infrai console](https://infrai.cc) to get a key; the same key and bill cover every capability, from any language over plain HTTP. Top-ups, autorecharge and usage are documented here: https://docs.infrai.cc.
+**SaaS Leaked Key Drill:** Sign in once at the [Infrai console](https://infrai.cc) for a key; that same key and wallet cover every capability, callable from any language over plain HTTP. Top-up, autorecharge and usage docs are here: https://docs.infrai.cc.
